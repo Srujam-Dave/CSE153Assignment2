@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CSE 153/253 Assignment 2 - Task 1</title>
+<style>
+  :root {
+    --ink: #202124;
+    --muted: #5f6368;
+    --line: #d9dee5;
+    --paper: #ffffff;
+    --soft: #f6f8fa;
+    --accent: #2f6f6f;
+    --accent-2: #8c4b2f;
+  }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 38px 24px 72px;
+  }
+  h1, h2, h3 {
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+  h1 {
+    font-size: 34px;
+    margin: 0 0 8px;
+  }
+  h2 {
+    border-top: 1px solid var(--line);
+    margin-top: 34px;
+    padding-top: 24px;
+    font-size: 24px;
+  }
+  h3 {
+    margin-top: 22px;
+    font-size: 18px;
+  }
+  p {
+    margin: 10px 0;
+  }
+  .lede {
+    color: var(--muted);
+    font-size: 18px;
+  }
+  code {
+    background: var(--soft);
+    padding: 0 4px;
+    border-radius: 4px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 14px 0 24px;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--soft);
+  }
+  svg {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    margin: 12px 0 20px;
+  }
+  rect {
+    fill: var(--accent);
+  }
+  .chart-title {
+    font-weight: 700;
+    fill: var(--ink);
+    font-size: 16px;
+  }
+  .chart-label, .chart-value {
+    fill: var(--muted);
+    font-size: 13px;
+  }
+  .callout {
+    background: #f8f4ef;
+    border-left: 4px solid var(--accent-2);
+    padding: 12px 14px;
+    margin: 18px 0;
+  }
+</style>
+</head>
+<body>
+<main>
+<h1>Task 1: Symbolic, Unconditioned Generation</h1>
+<p class="lede">Dataset: <code>EMOPIA_1.0</code>. Output file: <code>symbolic_unconditioned.mid</code>.</p>
+
+<h2>1. Exploratory Analysis and Preprocessing</h2>
+<p>
+EMOPIA is a pop-piano dataset organized around perceived emotion. The local copy
+contains transcribed MIDI clips, YouTube metadata, raw tagging lists, and a
+<code>label.csv</code> file with one of four valence-arousal quadrants for each
+clip. This task ignores the emotion labels during generation because it is
+unconditioned, but the labels are still useful for checking coverage and making
+a song-level split.
+</p>
+<p>
+I parsed the MIDI files directly, extracted note-on/note-off pairs, quantized
+time to sixteenth-note steps, and represented each clip as an event sequence:
+<code>TS_k</code> advances time by <code>k</code> sixteenth-note steps and
+<code>N_pitch_duration_velocity</code> places a note at the current time.
+Durations are capped at 32 steps and velocities are bucketed into 7 nonzero
+bins. Splits are made by YouTube song ID so clips from the same source song do
+not appear in both training and test sets.
+</p>
+<p>
+After generation, I also applied a small sound-design post-processing step to
+make the MIDI less percussive: generated note velocities are softened, very
+short notes are given a longer minimum duration, the tempo is lowered, and the
+instrument is changed from piano to a string ensemble. These changes affect the
+rendered sound but not the symbolic n-gram training objective.
+</p>
+<table>
+<thead><tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr></thead><tbody>
+<tr>
+<td>MIDI clips parsed</td>
+<td>1078</td>
+</tr>
+<tr>
+<td>Unique source songs</td>
+<td>387</td>
+</tr>
+<tr>
+<td>Total extracted notes</td>
+<td>285638</td>
+</tr>
+<tr>
+<td>Total event tokens</td>
+<td>433075</td>
+</tr>
+<tr>
+<td>Mean notes per clip</td>
+<td>264.97</td>
+</tr>
+<tr>
+<td>Mean tokens per clip</td>
+<td>401.74</td>
+</tr>
+</tbody></table>
+<table>
+<thead><tr>
+<th>Split</th>
+<th>Clips</th>
+</tr></thead><tbody>
+<tr>
+<td>test</td>
+<td>102</td>
+</tr>
+<tr>
+<td>train</td>
+<td>887</td>
+</tr>
+<tr>
+<td>val</td>
+<td>89</td>
+</tr>
+</tbody></table>
+<svg viewBox="0 0 680 194" role="img" aria-label="Clip counts by EMOPIA quadrant">
+<text x="0" y="18" class="chart-title">Clip counts by EMOPIA quadrant</text>
+<text x="0" y="53" class="chart-label">1</text>
+<rect x="120" y="34" width="435" height="28" rx="3"></rect>
+<text x="563" y="53" class="chart-value">250</text>
+<text x="0" y="91" class="chart-label">2</text>
+<rect x="120" y="72" width="462" height="28" rx="3"></rect>
+<text x="590" y="91" class="chart-value">265</text>
+<text x="0" y="129" class="chart-label">3</text>
+<rect x="120" y="110" width="441" height="28" rx="3"></rect>
+<text x="569" y="129" class="chart-value">253</text>
+<text x="0" y="167" class="chart-label">4</text>
+<rect x="120" y="148" width="540" height="28" rx="3"></rect>
+<text x="668" y="167" class="chart-value">310</text>
+</svg>
+<table>
+<thead><tr>
+<th>Quadrant</th>
+<th>Clips</th>
+</tr></thead><tbody>
+<tr>
+<td>Q1</td>
+<td>250</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>265</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>253</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>310</td>
+</tr>
+</tbody></table>
+
+<h2>2. Modeling</h2>
+<p>
+The ML problem is next-event modeling: estimate
+<code>p(x_t | x_{t-1}, ..., x_{t-n+1})</code> over symbolic MIDI events,
+then sample events autoregressively. I trained a variable-order n-gram model
+with maximum order 2. When an exact context is rare or unseen, the
+model interpolates with shorter contexts, ending in a smoothed unigram model.
+This is more expressive than a first-order Markov chain because it can preserve
+short timing and note-pattern motifs, but it remains transparent and fast enough
+to train from scratch on the full dataset without GPUs or external packages.
+</p>
+<p>
+Compared with an RNN or Transformer, this model has limited long-range form: it
+does not explicitly know about phrase boundaries, harmonic goals, or repetition
+over many measures. Its advantages are that it is robust on a small dataset,
+easy to audit, and directly optimizes a symbolic likelihood aligned with the
+generation process.
+</p>
+<p>
+For the final sample, I increased the target length to make the generated piece
+longer and lowered the sampling temperature below 1.0. Lower temperature makes
+the model choose more likely next events, which usually produces safer, smoother,
+and less chaotic output.
+</p>
+<table>
+<thead><tr>
+<th>Generation setting</th>
+<th>Value</th>
+</tr></thead><tbody>
+<tr>
+<td>Selected model</td>
+<td>2-gram</td>
+</tr>
+<tr>
+<td>Target length</td>
+<td>1024 sixteenth-note steps, approximately 64.0 bars</td>
+</tr>
+<tr>
+<td>Sampling temperature</td>
+<td>0.85</td>
+</tr>
+<tr>
+<td>Tempo</td>
+<td>72 BPM</td>
+</tr>
+<tr>
+<td>MIDI program</td>
+<td>48</td>
+</tr>
+<tr>
+<td>Sound/post-processing</td>
+<td>String ensemble; softened velocity; doubled/minimum note duration</td>
+</tr>
+</tbody></table>
+
+<h2>3. Evaluation</h2>
+<p>
+For objective evaluation, I compare held-out next-token perplexity for unigram,
+bigram, trigram, and four-gram models. Lower perplexity means the model assigns
+higher probability to unseen EMOPIA clips. This does not prove musical quality:
+a model can have good perplexity but still wander harmonically. So I also report
+simple musical descriptors of the generated sample beside train/test averages.
+</p>
+<table>
+<thead><tr>
+<th>Model</th>
+<th>Validation perplexity</th>
+<th>Test perplexity</th>
+</tr></thead><tbody>
+<tr>
+<td>1-gram</td>
+<td>818.22</td>
+<td>775.07</td>
+</tr>
+<tr>
+<td>2-gram</td>
+<td>602.00</td>
+<td>590.14</td>
+</tr>
+<tr>
+<td>3-gram</td>
+<td>863.99</td>
+<td>831.25</td>
+</tr>
+<tr>
+<td>4-gram</td>
+<td>980.90</td>
+<td>932.55</td>
+</tr>
+</tbody></table>
+<table>
+<thead><tr>
+<th>Descriptor</th>
+<th>Train mean</th>
+<th>Test mean</th>
+<th>Generated sample</th>
+</tr></thead><tbody>
+<tr>
+<td>Notes per clip</td>
+<td>264.60</td>
+<td>265.55</td>
+<td>923.00</td>
+</tr>
+<tr>
+<td>Unique pitches</td>
+<td>29.38</td>
+<td>29.91</td>
+<td>74.00</td>
+</tr>
+<tr>
+<td>Pitch range</td>
+<td>50.92</td>
+<td>51.90</td>
+<td>79.00</td>
+</tr>
+<tr>
+<td>Mean duration (16th-note steps)</td>
+<td>8.12</td>
+<td>8.07</td>
+<td>5.83</td>
+</tr>
+<tr>
+<td>Notes per 4/4 bar</td>
+<td>15.36</td>
+<td>15.33</td>
+<td>14.38</td>
+</tr>
+</tbody></table>
+<div class="callout">
+The generated sample uses the validation-selected 2-gram model with
+temperature 0.85, target length 1024 steps, and tempo 72 BPM.
+The lower temperature reduces randomness, while the longer target length gives a
+longer song. The string ensemble program, softer velocities, and longer minimum
+note durations reduce the tapping effect caused by frequent short note attacks.
+</div>
+<table>
+<thead><tr>
+<th>Generated descriptor</th>
+<th>Value</th>
+</tr></thead><tbody>
+<tr>
+<td>notes</td>
+<td>923.00</td>
+</tr>
+<tr>
+<td>steps</td>
+<td>1027.00</td>
+</tr>
+<tr>
+<td>unique pitches</td>
+<td>74.00</td>
+</tr>
+<tr>
+<td>pitch range</td>
+<td>79.00</td>
+</tr>
+<tr>
+<td>avg pitch</td>
+<td>60.20</td>
+</tr>
+<tr>
+<td>avg duration</td>
+<td>5.83</td>
+</tr>
+<tr>
+<td>avg velocity bin</td>
+<td>4.41</td>
+</tr>
+<tr>
+<td>notes per bar</td>
+<td>14.38</td>
+</tr>
+</tbody></table>
+
+<h2>4. Related Work</h2>
+<p>
+The EMOPIA paper introduced the dataset for emotion recognition and
+emotion-based music generation in pop piano. It pairs symbolic MIDI with
+emotion annotations in the four-quadrant valence-arousal space, which makes it
+natural for conditioned generation. This Task 1 model deliberately leaves the
+emotion labels out to estimate the overall symbolic distribution instead.
+</p>
+<p>
+Prior symbolic music generation systems often use event-token language models:
+older systems use Markov or n-gram variants, while recent systems use recurrent
+networks or Transformer-like decoders. The same evaluation tension appears
+throughout this literature: likelihood-style metrics are useful for debugging,
+but final musical quality usually needs listening tests or human judgment.
+</p>
+<p>
+References: Hung et al., <a href="https://arxiv.org/abs/2108.01374">EMOPIA: A
+Multi-Modal Pop Piano Dataset for Emotion Recognition and Emotion-based Music
+Generation</a>; project page at <a href="https://annahung31.github.io/EMOPIA/">annahung31.github.io/EMOPIA</a>.
+</p>
+</main>
+</body>
+</html>
